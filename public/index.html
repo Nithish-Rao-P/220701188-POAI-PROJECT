@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Author Profile Search</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha1/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            margin-top: 30px;
+            max-width: 800px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #343a40;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .form-control {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .card {
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .publication-details {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            display: none; /* Initially hidden */
+        }
+
+        .toggle-details {
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #007bff;
+            font-size: 16px;
+        }
+
+        .toggle-details i {
+            margin-left: 5px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-details.active i {
+            transform: rotate(90deg); /* Rotate when active */
+        }
+
+        .stats {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #citationChart {
+            margin-top: 20px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Author Profile Search</h1>
+        <form id="authorForm" class="mb-4">
+            <div class="form-group">
+                <label for="firstName">First Name:</label>
+                <input type="text" class="form-control" id="firstName" required>
+            </div>
+            <div class="form-group">
+                <label for="lastName">Last Name:</label>
+                <input type="text" class="form-control" id="lastName" required>
+            </div>
+            <div class="form-group">
+                <label for="collegeName">College Name:</label>
+                <input type="text" class="form-control" id="collegeName" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-submit">Submit</button>
+        </form>
+
+        <div id="authorDetails" style="display: none;">
+            <h2>Author Details</h2>
+            <div id="profile"></div>
+            <div id="citations"></div>
+            <div id="publications"><br><br></div>
+            <canvas id="citationChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Author Profile Search. All rights reserved.</p>
+    </footer>
+
+    <script>
+        $(document).ready(function () {
+            $('#authorForm').on('submit', function (event) {
+                event.preventDefault();
+
+                const firstName = $('#firstName').val();
+                const lastName = $('#lastName').val();
+                const collegeName = $('#collegeName').val();
+
+                $.post('/get-author-details', { firstName, lastName, collegeName }, function (data) {
+                    // Update author profile information
+                    $('#profile').html(`
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <img src="${data.profile.thumbnail}" class="rounded" width="100" alt="Profile Picture">
+                                    <div class="ml-3">
+                                        <h5 class="card-title">${data.profile.name}</h5>
+                                        <p class="card-text">${data.profile.affiliations}</p>
+                                        <div class="stats">
+                                            <span>Citations: ${data.profile.cited_by}</span>
+                                        </div>
+                                        <button class="btn btn-outline-primary mt-2" onclick="window.location.href = '${data.profile.link}';">Go To Profile!</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+
+                    // Create the publications list with dropdown details
+                    let publicationsHTML = '<h3>Publications</h3><ul class="list-unstyled">';
+                    data.articles.forEach((article, index) => {
+                        publicationsHTML += `
+                            <li>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>${article.title} (${article.year})</strong>
+                                    <button class="toggle-details" data-index="${index}">
+                                        <i class="fa fa-chevron-down" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="publication-details" id="details-${index}">
+                                    <p><strong>Journal:</strong> ${article.publication || 'N/A'}</p>
+                                    <p><strong>Journal Authors:</strong> ${article.authors || 'N/A'}</p>
+                                    <p><strong>Published on:</strong> ${article.year || 'N/A'}</p>
+                                    <p><strong>Journal Link:</strong> <a href="${article.link}" target="_blank">${article.link || 'N/A'}</a></p>
+                                    <p><strong>Total Citations:</strong> ${article.cited_by.value || 'N/A'}</p>
+                                    <p><strong>Citations Link:</strong> <a href="${article.cited_by.link}" target="_blank">${article.cited_by.link || 'N/A'}</a></p>
+                                    <p><strong>Citation ID:</strong> ${article.cited_by.cites_id || 'N/A'}</p>
+                                </div>
+                            </li>
+                        `;
+                    });
+                    publicationsHTML += '</ul>';
+                    $('#publications').html(publicationsHTML);
+
+                    // Show the author details
+                    $('#authorDetails').show();
+
+                    // Toggle publication details and rotate arrow
+                    $('.toggle-details').on('click', function () {
+                        const index = $(this).data('index');
+                        $(`#details-${index}`).toggle(); // Show/hide the details
+                        $(this).toggleClass('active'); // Add/remove the class for animation
+                    });
+                }).fail(function () {
+                    alert('Error retrieving author details. Please check the input.');
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
