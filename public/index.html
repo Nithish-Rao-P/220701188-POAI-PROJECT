@@ -11,93 +11,119 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha1/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
+        /* Base Styles */
         body {
-            background-color: #f8f9fa;
-            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            font-family: 'Arial', sans-serif;
+            color: #333;
         }
 
+        h1, h2, h3, h5 {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* Container Styles */
         .container {
-            margin-top: 30px;
             max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
-        h1 {
-            margin-bottom: 20px;
-            text-align: center;
-            color: #343a40;
-        }
-
+        /* Form Styles */
         .form-group {
             margin-bottom: 15px;
         }
 
-        .form-group label {
-            font-weight: bold;
-            color: #495057;
-        }
-
-        .form-control {
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-        }
-
+        /* Button Styles */
         .btn-submit {
-            width: 100%;
-            margin-top: 10px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s;
         }
 
+        .btn-submit:hover {
+            background-color: #0056b3;
+        }
+
+        /* Card Styles */
         .card {
-            margin-top: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: none;
+            transition: transform 0.3s, box-shadow 0.3s;
         }
 
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Publication Styles */
         .publication-details {
-            margin-top: 10px;
+            display: none;
             padding: 10px;
-            background-color: #ffffff;
-            border: 1px solid #007bff;
-            border-radius: 4px;
-            display: none; /* Initially hidden */
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .toggle-details {
-            border: none;
-            background: none;
             cursor: pointer;
-            color: #007bff;
-            font-size: 16px;
-        }
-
-        .toggle-details i {
-            margin-left: 5px;
             transition: transform 0.3s;
         }
 
-        .toggle-details.active i {
-            transform: rotate(90deg); /* Rotate when active */
+        .toggle-details.active {
+            transform: rotate(180deg);
         }
 
-        .stats {
-            background-color: #007bff;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
+        /* Footer Styles */
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9rem;
         }
 
+        /* Chart Styles */
         #citationChart {
             margin-top: 20px;
         }
 
-        footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #6c757d;
+        /* 3D Animation */
+        @keyframes popIn {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .chart-container {
+    display: flex;
+    justify-content: space-between; /* Space between the charts */
+    align-items: flex-start; /* Aligns the charts at the top */
+    flex-wrap: wrap; /* Allows charts to wrap on smaller screens */
+    margin: 20px; /* Adds some margin around the container */
+}
+
+canvas {
+    flex: 1; /* Allows each canvas to take equal width */
+    max-width: 400px; /* Maximum width for each chart */
+    margin: 10px; /* Adds space around each chart */
+}
+
+        .animated {
+            animation: popIn 0.5s ease forwards;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
+    <div class="container animated">
         <h1>Author Profile Search</h1>
         <form id="authorForm" class="mb-4">
             <div class="form-group">
@@ -112,92 +138,218 @@
                 <label for="collegeName">College Name:</label>
                 <input type="text" class="form-control" id="collegeName" required>
             </div>
-            <button type="submit" class="btn btn-primary btn-submit">Submit</button>
+            <button type="submit" class="btn btn-submit">Submit</button>
         </form>
 
         <div id="authorDetails" style="display: none;">
             <h2>Author Details</h2>
             <div id="profile"></div>
-            <div id="citations"></div>
-            <div id="publications"><br><br></div>
-            <canvas id="citationChart" width="400" height="200"></canvas>
+            <div id="publications"></div>
+            <div class="chart-container">
+                <canvas id="citationChart"></canvas>
+                <canvas id="publicationCitationChart"></canvas>
+            </div>
+            
         </div>
     </div>
 
     <footer>
         <p>&copy; 2024 Author Profile Search. All rights reserved.</p>
     </footer>
-
     <script>
+        let citationChart; // Global variable to hold the chart instance
+        let citationChart1;
+        // Function to render the doughnut chart
+    
         $(document).ready(function () {
             $('#authorForm').on('submit', function (event) {
                 event.preventDefault();
-
+        
                 const firstName = $('#firstName').val();
                 const lastName = $('#lastName').val();
                 const collegeName = $('#collegeName').val();
-
+        
                 $.post('/get-author-details', { firstName, lastName, collegeName }, function (data) {
-                    // Update author profile information
-                    $('#profile').html(`
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <img src="${data.profile.thumbnail}" class="rounded" width="100" alt="Profile Picture">
-                                    <div class="ml-3">
-                                        <h5 class="card-title">${data.profile.name}</h5>
-                                        <p class="card-text">${data.profile.affiliations}</p>
-                                        <div class="stats">
-                                            <span>Citations: ${data.profile.cited_by}</span>
+                    console.log("Received response:", data); // Check if data is received
+        
+                    if (data && data.profile) {
+                        $('#profile').html(`
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <img src="${data.profile.thumbnail}" class="rounded" width="100" alt="Profile Picture">
+                                        <div class="ml-3">
+                                            <h5 class="card-title">${data.profile.name}</h5>
+                                            <p class="card-text">${data.profile.affiliations}</p>
+                                            <div class="stats">
+                                                <span>Citations: ${data.profile.cited_by}</span>
+                                            </div>
+                                            <button class="btn btn-outline-primary mt-2" onclick="window.location.href = '${data.profile.link}';">Go To Profile!</button>
                                         </div>
-                                        <button class="btn btn-outline-primary mt-2" onclick="window.location.href = '${data.profile.link}';">Go To Profile!</button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `);
-
-                    // Create the publications list with dropdown details
-                    let publicationsHTML = '<h3>Publications</h3><ul class="list-unstyled">';
-                    data.articles.forEach((article, index) => {
-                        publicationsHTML += `
-                            <li>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <strong>${article.title} (${article.year})</strong>
-                                    <button class="toggle-details" data-index="${index}">
-                                        <i class="fa fa-chevron-down" aria-hidden="true"></i>
-                                    </button>
-                                </div>
-                                <div class="publication-details" id="details-${index}">
-                                    <p><strong>Journal:</strong> ${article.publication || 'N/A'}</p>
-                                    <p><strong>Journal Authors:</strong> ${article.authors || 'N/A'}</p>
-                                    <p><strong>Published on:</strong> ${article.year || 'N/A'}</p>
-                                    <p><strong>Journal Link:</strong> <a href="${article.link}" target="_blank">${article.link || 'N/A'}</a></p>
-                                    <p><strong>Total Citations:</strong> ${article.cited_by.value || 'N/A'}</p>
-                                    <p><strong>Citations Link:</strong> <a href="${article.cited_by.link}" target="_blank">${article.cited_by.link || 'N/A'}</a></p>
-                                    <p><strong>Citation ID:</strong> ${article.cited_by.cites_id || 'N/A'}</p>
-                                </div>
-                            </li>
-                        `;
-                    });
-                    publicationsHTML += '</ul>';
-                    $('#publications').html(publicationsHTML);
-
-                    // Show the author details
-                    $('#authorDetails').show();
-
-                    // Toggle publication details and rotate arrow
-                    $('.toggle-details').on('click', function () {
-                        const index = $(this).data('index');
-                        $(`#details-${index}`).toggle(); // Show/hide the details
-                        $(this).toggleClass('active'); // Add/remove the class for animation
-                    });
+                        `);
+        
+                        let publicationsHTML = '<h3>Publications</h3><ul class="list-unstyled">';
+                            let publicationTitles = []; // Array to hold titles
+                            let publicationCitations = []; // Array to hold citation counts
+                        data.articles.forEach((article, index) => {
+                            publicationsHTML += `
+                                <li>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>${article.title} (${article.year})</strong>
+                                        <button class="toggle-details" data-index="${index}">
+                                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <div class="publication-details" id="details-${index}">
+                                        <p><strong>Journal:</strong> ${article.publication || 'N/A'}</p>
+                                        <p><strong>Journal Authors:</strong> ${article.authors || 'N/A'}</p>
+                                        <p><strong>Published on:</strong> ${article.year || 'N/A'}</p>
+                                        <p><strong>Journal Link:</strong> <a href="${article.link}" target="_blank">${article.link || 'N/A'}</a></p>
+                                        <p><strong>Total Citations:</strong> ${article.cited_by.value || 'N/A'}</p>
+                                        <p><strong>Citations Link:</strong> <a href="${article.cited_by.link}" target="_blank">${article.cited_by.link || 'N/A'}</a></p>
+                                        <p><strong>Citation ID:</strong> ${article.cited_by.cites_id || 'N/A'}</p>
+                                    </div>
+                                </li>
+                            `;
+                            publicationTitles.push(article.title);
+                    publicationCitations.push(article.cited_by.value || 0);
+                        });
+        
+                        publicationsHTML += '</ul>';
+                        $('#publications').html(publicationsHTML);
+        
+                        // Show the author details
+                        $('#authorDetails').show();
+        
+                        // Toggle publication details and rotate icon
+                        $('.toggle-details').on('click', function () {
+                            const index = $(this).data('index');
+                            $(`#details-${index}`).toggle(); // Show/hide the details
+                            $(this).toggleClass('active'); // Add/remove the class for animation
+                        });
+        
+                        // Render the chart with citations data
+                        createCitationChart(data.cited_by.graph); // Ensure this is the correct path for citation data
+                        renderPublicationCitationChart(publicationTitles, publicationCitations);
+                    }
                 }).fail(function () {
                     alert('Error retrieving author details. Please check the input.');
                 });
             });
         });
-    </script>
+        
+        // Function to render the doughnut chart
+        function createCitationChart(results) {
+            const titles = results.map(item => item.year);
+            const citations = results.map(item => item.citations);
+        
+            const ctx = document.getElementById('citationChart').getContext('2d');
+        
+            // Create a new Chart instance
+            window.citationChart = new Chart(ctx, {
+                type: 'doughnut', // Corrected spelling
+                data: {
+                    labels: titles,
+                    datasets: [{
+                        label: 'Citations',
+                        data: citations,
+                        backgroundColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(54, 162, 235)',
+                            'rgb(255, 205, 86)',
+                            'rgb(75, 192, 192)',
+                            'rgb(153, 102, 255)',
+                            'rgb(255, 159, 64)'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    return `${label}: ${value} citations`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        function renderPublicationCitationChart(titles, citations) {
+            const ctx = document.getElementById('publicationCitationChart').getContext('2d');
+        
+            // Create a new Chart instance
+            window.citationChart1 = new Chart(ctx, {
+                type: 'doughnut', // Doughnut chart type
+                data: {
+                    labels: titles,
+                    datasets: [{
+                        data: citations,
+                        backgroundColor: [
+                        'rgba(75, 192, 192, 0.5)', // Transparent colors
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)',
+                        'rgba(153, 102, 255, 0.5)',
+                        'rgba(255, 159, 64, 0.5)',
+                    ],
+                        borderColor: 'rgba(255, 255, 255, 1)',
+                        borderWidth: 1,
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    return `${label}: ${value} citations`;
+                                }
+                            }
+                        },
+                        legend: {
+                            display: false // Remove the legend
+                        },
+                        elements: {
+                            arc: {
+                                borderWidth: 2,
+                                hoverBorderWidth: 4, // Make the border wider on hover
+                            }
+                        },
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        animation: {
+                            onHover: function(e) {
+                                const activePoint = this.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                                if (activePoint.length) {
+                                    const index = activePoint[0].index;
+                                    const datasetIndex = activePoint[0].datasetIndex;
+                                    const chartData = this.data.datasets[datasetIndex].data[index];
+                                    this.setActiveElements(activePoint);
+                                    this.update();
+                                } else {
+                                    this.setActiveElements([]);
+                                    this.update();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+            </script>
 </body>
 
 </html>
